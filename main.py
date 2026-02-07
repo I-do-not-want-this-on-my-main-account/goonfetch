@@ -1,8 +1,10 @@
 from to_ascii import main as to_ascii
+from to_kitty import print_kitty
 import requests
 import random
 import shutil
-import os, tomllib
+import os, tomllib, PIL
+from io import BytesIO
 from pathlib import Path
 from platformdirs import user_config_dir
 import argparse
@@ -19,9 +21,13 @@ def get_images(auth, tags):
     url = f'https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&limit=100&pid=1&tags={tags}&json=1&'+auth
     r = requests.get(url).json()
     return random.choice(r)
-def main(obj, ma):
+def main(obj, ma, protocol):
     img_bytes = requests.get(obj['preview_url']).content
-    w, _ = to_ascii(img_bytes, (int(ma[0]), int(ma[1]-4)))
+    if protocol:
+        print_kitty(BytesIO(img_bytes), (int(ma[0]), int(ma[1]-4)))
+        w = ma[0]
+    else:
+        w, _ = to_ascii(img_bytes, (int(ma[0]), int(ma[1]-4)))
     print(f"https://rule34.xxx/index.php?page=post&s=view&id={obj['id']}")
     print(obj['owner'])
     print(ellips(obj['tags'], w+3))
@@ -31,6 +37,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Example with optional args")
     parser.add_argument('--max-columns', '-c', type=int, default=size.columns//2, help='Max character columns. Defaults to 1/2 terminal width.')
     parser.add_argument('--max-rows', '-r', type=int, default=size.lines-4, help='Max character rows. Defaults to terminal height.')
+    parser.add_argument('--kitty', action='store_true', required=False, help='Use Kitty Graphics Protocol.')
     args = parser.parse_args()
     path = Path(user_config_dir("goonfetch")) / "config.toml"
     if not path.exists:
@@ -40,4 +47,4 @@ if __name__ == '__main__':
     if not cfg.get('auth'):
         print("No auth found. You can create an api-key and find your user id in the rule34.xxx account settings page.")
     auth = cfg.get('auth')
-    main(get_images(auth, cfg.get('tags')), (args.max_columns, args.max_rows+4))
+    main(get_images(auth, cfg.get('tags')), (args.max_columns, args.max_rows+4), args.kitty)
